@@ -123,3 +123,24 @@ jobs:
         name: docker-logs
         path: |
           /tmp/docker.log
+
+
+  gw-testnet_v1-readonly-node-sync-self-hosted:
+    # Use this YAML in your workflow file for each job
+    runs-on: self-hosted
+    
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Cache chain-data
+      uses: actions/cache@v3
+      with:
+        path: |
+          chain-data/
+          testnet_v1_1/chain-data/readonly
+        key: chain-data-${{ hashFiles('testnet_v1_1/docker-compose.yml') }}-${{ github.sha }}
+        restore-keys: |
+          chain-data-${{ hashFiles('testnet_v1_1/docker-compose.yml') }}
+       
+    - name: Setup tmate session
+      uses: mxschmitt/action-tmate@v3
