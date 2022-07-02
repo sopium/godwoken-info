@@ -127,7 +127,7 @@ jobs:
           /tmp/docker.log
 
 
-  gw-testnet_v1-readonly-node-sync-self-hosted:
+  gw-testnet_v1-sync-self-hosted:
     # Use this YAML in your workflow file for each job
     runs-on: self-hosted
     
@@ -146,3 +146,5 @@ jobs:
        
     - name: Setup tmate session
       uses: mxschmitt/action-tmate@v3
+      with:
+        limit-access-to-actor: true
