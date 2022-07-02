@@ -6,6 +6,7 @@ on:
 
 jobs:
   gw-testnet_v1-readonly-node-sync:
+    if: false
     runs-on: ubuntu-latest
 
     steps:
