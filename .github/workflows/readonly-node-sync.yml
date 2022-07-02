@@ -2,6 +2,7 @@ name: Sync Test
 
 on:
   push:
+    branches: [ 'sync*' ]
 
 jobs:
   gw-testnet_v1-readonly-node-sync:
