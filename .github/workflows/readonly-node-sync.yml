@@ -8,6 +8,7 @@ on:
 
 jobs:
   sync-mainnet:
+    timeout-minutes: 3600
     if: contains(github.ref_name, 'mainnet') || github.event_name == 'workflow_dispatch'
     runs-on: self-hosted
     env:
@@ -125,11 +126,11 @@ jobs:
             }
           }
 
-    - name: Setup tmate session
-      uses: mxschmitt/action-tmate@v3
-      if: ${{ failure() }}
-      with:
-        limit-access-to-actor: true
+    # - name: Setup tmate session
+    #   uses: mxschmitt/action-tmate@v3
+    #   if: ${{ failure() }}
+    #   with:
+    #     limit-access-to-actor: true
 
     - name: Save logs
       if: always()
@@ -149,7 +150,8 @@ jobs:
 
 
   sync-testnet:
-    if: contains(github.ref_name, 'testnet')
+    timeout-minutes: 3600
+    if: contains(github.ref_name, 'testnet') || github.event_name == 'workflow_dispatch'
     runs-on: self-hosted
     env:
       CKB_TESTNET_RPC: http://172.31.40.63:38114
@@ -244,7 +246,6 @@ jobs:
     - name: Check if web3 service is ready
       if: steps.up.outputs.web3 == 'true'
       uses: actions/github-script@v6
-      timeout-minutes: 30
       with:
         script: |
           const { getTipBlockNumber } = require("./godwoken-tests/scripts/helper");
@@ -263,11 +264,11 @@ jobs:
             }
           }
 
-    - name: Setup tmate session
-      uses: mxschmitt/action-tmate@v3
-      if: ${{ failure() }}
-      with:
-        limit-access-to-actor: true
+    # - name: Setup tmate session
+    #   uses: mxschmitt/action-tmate@v3
+    #   if: ${{ failure() }}
+    #   with:
+    #     limit-access-to-actor: true
 
     - name: Save logs
       if: always()
