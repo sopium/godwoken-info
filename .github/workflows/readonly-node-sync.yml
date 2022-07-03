@@ -10,6 +10,9 @@ jobs:
   sync-mainnet:
     if: contains(github.ref_name, 'mainnet') || github.event_name == 'workflow_dispatch'
     runs-on: self-hosted
+    env:
+      CKB_MAINNET_RPC: http://172.31.40.63:28114
+      CKB_MAINNET_INDEXER: http://172.31.40.63:28116
 
     steps:
     - uses: actions/checkout@v3
@@ -23,6 +26,14 @@ jobs:
         key: chain-data-${{ hashFiles('mainnet_v1/docker-compose.yml') }}-${{ github.sha }}
         restore-keys: |
           chain-data-${{ hashFiles('mainnet_v1/docker-compose.yml') }}
+
+    - name: Use local ckb-mainnet-node
+      working-directory: mainnet_v1
+      run: |
+        sed -i -e "s|ckb_url.*|ckb_url = '$CKB_MAINNET_RPC'|" \
+          gw-mainnet_v1-config-readonly.toml
+        sed -i -e "s|indexer_url.*|indexer_url = '$CKB_MAINNET_INDEXER'|" \
+          gw-mainnet_v1-config-readonly.toml
 
     # https://github.com/KengoTODA/actions-setup-docker-compose/tree/v1.0.16
     - uses: KengoTODA/actions-setup-docker-compose@v1.0.16
@@ -137,6 +148,9 @@ jobs:
   sync-testnet:
     if: contains(github.ref_name, 'testnet')
     runs-on: self-hosted
+    env:
+      CKB_TESTNET_RPC: http://172.31.40.63:38114
+      CKB_TESTNET_INDEXER: http://172.31.40.63:18116
     
     steps:
     - uses: actions/checkout@v3
@@ -150,6 +164,14 @@ jobs:
         key: chain-data-${{ hashFiles('testnet_v1_1/docker-compose.yml') }}-${{ github.sha }}
         restore-keys: |
           chain-data-${{ hashFiles('testnet_v1_1/docker-compose.yml') }}
+
+    - name: Use local ckb-testnet-node
+      working-directory: testnet_v1_1
+      run: |
+        sed -i -e "s|ckb_url.*|ckb_url = '$CKB_TESTNET_RPC'|" \
+          gw-testnet_v1-config-readonly.toml
+        sed -i -e "s|indexer_url.*|indexer_url = '$CKB_TESTNET_INDEXER'|" \
+          gw-testnet_v1-config-readonly.toml
     
     # https://github.com/KengoTODA/actions-setup-docker-compose/tree/v1.0.16
     - uses: KengoTODA/actions-setup-docker-compose@v1.0.16
