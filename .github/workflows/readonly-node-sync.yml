@@ -11,8 +11,11 @@ jobs:
     if: contains(github.ref_name, 'mainnet') || github.event_name == 'workflow_dispatch'
     runs-on: self-hosted
     env:
-      CKB_MAINNET_RPC: http://172.31.40.63:28114
-      CKB_MAINNET_INDEXER: http://172.31.40.63:28116
+      # local CKB node on the self-hosted runner
+      # CKB_MAINNET_RPC: http://172.31.40.63:28114
+      # CKB_MAINNET_INDEXER: http://172.31.40.63:28116
+      CKB_MAINNET_RPC: https://mainnet.ckb.dev/rpc
+      CKB_MAINNET_INDEXER: https://mainnet.ckb.dev/indexer
 
     steps:
     - uses: actions/checkout@v3
