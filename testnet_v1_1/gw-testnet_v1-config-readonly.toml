@@ -45,6 +45,7 @@ backend_type = 'Polyjuice'
 
 [[backend_switches]]
 switch_height = 180000
+# Polyjuice v1.4 is backward compatible with Polyjuice v1.3
 # https://github.com/nervosnetwork/godwoken-polyjuice/releases/tag/1.4.0-rc
 [[backend_switches.backends]]
 validator_path = '/scripts/godwoken-polyjuice/validator'
