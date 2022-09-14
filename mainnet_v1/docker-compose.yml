@@ -10,7 +10,7 @@ services:
       test: /bin/gw-healthcheck.sh
       start_period: 10s
       interval: 30s
-      retries: 100
+      retries: 1000
     working_dir: /deploy
     volumes:
     - ./chain-data/readonly/:/mnt/
