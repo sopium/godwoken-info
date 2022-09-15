@@ -194,7 +194,7 @@ jobs:
         # hosted-runner run time:
         # Each workflow run is limited to 35 days.
         # If a workflow run reaches this limit, the workflow run is cancelled.
-        TIMEOUT: 10h
+        TIMEOUT: 1d
       run: |
         docker-compose ps
         echo "Wait until Godwoken readonly node is ready to serve"
