@@ -4,8 +4,7 @@ version: '3.9'
 services:
   gw-readonly:
     container_name: gw-mainnet_v1-readonly
-    # https://github.com/godwokenrises/godwoken-docker-prebuilds/pkgs/container/godwoken-prebuilds/46466026?tag=1.6.2-rc2
-    image: ghcr.io/godwokenrises/godwoken-prebuilds:1.6.2-rc3
+    image: ghcr.io/godwokenrises/godwoken-prebuilds:1.6.2-rc4
     expose: [8119, 8219]
     healthcheck:
       test: /bin/gw-healthcheck.sh
