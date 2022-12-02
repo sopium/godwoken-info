@@ -71,7 +71,7 @@ jobs:
         [[ $bad_block_found == true ]] && exit 1
         docker-compose ps
         docker-compose ps gw-readonly | egrep healthy \
-        && echo "::set-output name=state::healthy"
+        && echo "state=healthy" >> $GITHUB_OUTPUT
        
     - name: Start Godwoken Web3 and Indexer services if Godwoken readonly node is ready
       if: steps.gw-readonly-node.outputs.state == 'healthy'
@@ -88,7 +88,7 @@ jobs:
           sleep 6s
         done' || echo "timeout(${{ env.TIMEOUT }})"
         docker-compose ps web3-indexer | egrep Up \
-        && echo "::set-output name=web3::true"
+        && echo "web3=true" >> $GITHUB_OUTPUT
 
     - uses: actions/checkout@v3
       with:
@@ -213,7 +213,7 @@ jobs:
         [[ $bad_block_found == true ]] && exit 1
         docker-compose ps
         docker-compose ps gw-readonly | egrep healthy \
-        && echo "::set-output name=state::healthy"
+        && echo "state=healthy" >> $GITHUB_OUTPUT
        
     - name: Start Godwoken Web3 and Indexer services if Godwoken readonly node is ready
       if: steps.gw-readonly-node.outputs.state == 'healthy'
@@ -230,7 +230,7 @@ jobs:
           sleep 6s
         done' || echo "timeout(${{ env.TIMEOUT }})"
         docker-compose ps web3-indexer | egrep Up \
-        && echo "::set-output name=web3::true"
+        && echo "web3=true" >> $GITHUB_OUTPUT
 
     - uses: actions/checkout@v3
       with:
