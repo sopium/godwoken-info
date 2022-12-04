@@ -263,9 +263,9 @@ jobs:
               console.error(error);
             }
           }
-    # - name: Run tests on the readonly-node
-    #   working-directory: godwoken-tests/contracts
-    #   run: npm install && npm run test
+    - name: Run tests on the readonly-node
+      working-directory: godwoken-tests/contracts
+      run: npm install && npm run test
 
     # - name: Setup tmate session
     #   uses: mxschmitt/action-tmate@v3
