@@ -2,10 +2,19 @@ name: Sync Test
 
 on:
   push:
+    branches: [ '*sync*' ]
+  workflow_dispatch:
+
 
 jobs:
-  gw-testnet_v1-readonly-node-sync:
-    runs-on: ubuntu-latest
+  sync-mainnet:
+    timeout-minutes: 3600
+    if: contains(github.ref_name, 'mainnet') || github.event_name == 'workflow_dispatch'
+    runs-on: self-hosted
+    env:
+      # local CKB node on the self-hosted runner
+      CKB_MAINNET_RPC: http://172.31.40.63:28114
+      CKB_MAINNET_INDEXER: http://172.31.40.63:28116
 
     steps:
     - uses: actions/checkout@v3
@@ -15,22 +24,26 @@ jobs:
       with:
         path: |
           chain-data/
-          testnet_v1_1/chain-data/readonly
-        key: chain-data-${{ hashFiles('testnet_v1_1/docker-compose.yml') }}-${{ github.sha }}
+          mainnet_v1/chain-data/readonly
+        key: chain-data-${{ hashFiles('mainnet_v1/docker-compose.yml') }}-${{ github.sha }}
         restore-keys: |
-          chain-data-${{ hashFiles('testnet_v1_1/docker-compose.yml') }}
-        
-    # https://cdn-ckb-tools.sfo3.digitaloceanspaces.com/snapshots/snapshots.html?prefix=snapshots/
-    - name: Get the snapshots of ckb-indexer
-      run: |
-        [[ -d chain-data/ckb-indexer-data ]] && exit 0
-        mkdir -p chain-data && cd chain-data
-        curl -LO https://cdn-ckb-tools.sfo3.digitaloceanspaces.com/snapshots/20220605-nervos-ckb-indexer-0.3.2-testnet-snapshot.7z
-        7z x 20220605-nervos-ckb-indexer-0.3.2-testnet-snapshot.7z -ockb-indexer-data
-        rm 20220605-nervos-ckb-indexer-0.3.2-testnet-snapshot.7z
+          chain-data-${{ hashFiles('mainnet_v1/docker-compose.yml') }}
 
-    - name: Run a Godwoken testnet_v1 readonly node
-      working-directory: testnet_v1_1
+    - name: Use local ckb-mainnet-node
+      working-directory: mainnet_v1
+      run: |
+        sed -i -e "s|ckb_url.*|ckb_url = '$CKB_MAINNET_RPC'|" \
+          gw-mainnet_v1-config-readonly.toml
+        sed -i -e "s|indexer_url.*|indexer_url = '$CKB_MAINNET_INDEXER'|" \
+          gw-mainnet_v1-config-readonly.toml
+
+    # https://github.com/KengoTODA/actions-setup-docker-compose/tree/v1.0.16
+    - uses: KengoTODA/actions-setup-docker-compose@v1.0.16
+      with:
+        version: '1.29.2'
+
+    - name: Run a Godwoken mainnet_v1 readonly node
+      working-directory: mainnet_v1
       run: |
         cat docker-compose.yml
         docker-compose up -d gw-readonly
@@ -38,9 +51,12 @@ jobs:
 
     - name: Wait until Godwoken readonly node is ready to serve
       id: gw-readonly-node
-      working-directory: testnet_v1_1
+      working-directory: mainnet_v1
       env:
-        TIMEOUT: 5h
+        # hosted-runner run time:
+        # Each workflow run is limited to 35 days.
+        # If a workflow run reaches this limit, the workflow run is cancelled.
+        TIMEOUT: 2d
       run: |
         docker-compose ps
         echo "Wait until Godwoken readonly node is ready to serve"
@@ -55,14 +71,14 @@ jobs:
         [[ $bad_block_found == true ]] && exit 1
         docker-compose ps
         docker-compose ps gw-readonly | egrep healthy \
-        && echo "::set-output name=state::healthy"
-
+        && echo "state=healthy" >> $GITHUB_OUTPUT
+       
     - name: Start Godwoken Web3 and Indexer services if Godwoken readonly node is ready
       if: steps.gw-readonly-node.outputs.state == 'healthy'
       id: up
-      working-directory: testnet_v1_1
+      working-directory: mainnet_v1
       env:
-        TIMEOUT: 1h
+        TIMEOUT: 2h
       run: |
         docker-compose ps
         docker-compose up -d
@@ -72,24 +88,164 @@ jobs:
           sleep 6s
         done' || echo "timeout(${{ env.TIMEOUT }})"
         docker-compose ps web3-indexer | egrep Up \
-        && echo "::set-output name=web3::true" 
+        && echo "web3=true" >> $GITHUB_OUTPUT
 
     - uses: actions/checkout@v3
       with:
-        repository: nervosnetwork/godwoken-tests
-        ref: v1
+        repository: godwokenrises/godwoken-tests
+        ref: develop
         path: godwoken-tests
         submodules: 'true'
     - uses: actions/setup-node@v3
       with:
         node-version: '16'
-        # cache: 'yarn'
-    - run: yarn install
+    - run: npm i -g yarn && yarn install
       working-directory: godwoken-tests/tools
     - name: Check if web3 service is ready
       if: steps.up.outputs.web3 == 'true'
       uses: actions/github-script@v6
       timeout-minutes: 30
+      with:
+        script: |
+          const { getTipBlockNumber } = require("./godwoken-tests/scripts/helper");
+          const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+          const PUBLIC_WEB3_RPC='https://v1.mainnet.godwoken.io/rpc';
+          let isSyncedToTip = false;
+          while (!isSyncedToTip) {
+            await sleep(6666);
+            try {
+              const [localTip, fullnodeTip] = await Promise.all([
+                getTipBlockNumber(), getTipBlockNumber(PUBLIC_WEB3_RPC)
+              ]);
+              isSyncedToTip = fullnodeTip - localTip < 6;
+            } catch (error) {
+              console.error(error);
+            }
+          }
+      
+    # - name: Run tests on the readonly-node
+    #   working-directory: godwoken-tests/contracts
+    #   run: npm install && npm run test
+
+    # - name: Setup tmate session
+    #   uses: mxschmitt/action-tmate@v3
+    #   if: ${{ failure() }}
+    #   with:
+    #     limit-access-to-actor: true
+
+    - name: Save logs
+      if: always()
+      working-directory: mainnet_v1
+      run: |
+        docker-compose ps
+        docker-compose logs --tail 666
+        docker-compose stop
+        docker-compose logs > /tmp/docker.log
+    - name: Archive logs
+      if: always()
+      uses: actions/upload-artifact@v2
+      with:
+        name: docker-logs
+        path: |
+          /tmp/docker.log
+
+
+  sync-testnet:
+    timeout-minutes: 3600
+    if: contains(github.ref_name, 'testnet') || github.event_name == 'workflow_dispatch'
+    runs-on: self-hosted
+    env:
+      CKB_TESTNET_RPC: http://172.31.40.63:38114
+      CKB_TESTNET_INDEXER: http://172.31.40.63:18116
+    
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Cache chain-data
+      uses: actions/cache@v3
+      with:
+        path: |
+          chain-data/
+          testnet_v1_1/chain-data/readonly
+        key: chain-data-${{ hashFiles('testnet_v1_1/docker-compose.yml') }}-${{ github.sha }}
+        restore-keys: |
+          chain-data-${{ hashFiles('testnet_v1_1/docker-compose.yml') }}
+
+    - name: Use local ckb-testnet-node
+      working-directory: testnet_v1_1
+      run: |
+        sed -i -e "s|ckb_url.*|ckb_url = '$CKB_TESTNET_RPC'|" \
+          gw-testnet_v1-config-readonly.toml
+        sed -i -e "s|indexer_url.*|indexer_url = '$CKB_TESTNET_INDEXER'|" \
+          gw-testnet_v1-config-readonly.toml
+    
+    # https://github.com/KengoTODA/actions-setup-docker-compose/tree/v1.0.16
+    - uses: KengoTODA/actions-setup-docker-compose@v1.0.16
+      with:
+        version: '1.29.2'
+
+    - name: Run a Godwoken testnet_v1 readonly node
+      working-directory: testnet_v1_1
+      run: |
+        cat docker-compose.yml
+        docker-compose up -d gw-readonly
+        docker-compose ps
+
+    - name: Wait until Godwoken readonly node is ready to serve
+      id: gw-readonly-node
+      working-directory: testnet_v1_1
+      env:
+        # hosted-runner run time:
+        # Each workflow run is limited to 35 days.
+        # If a workflow run reaches this limit, the workflow run is cancelled.
+        TIMEOUT: 1d
+      run: |
+        docker-compose ps
+        echo "Wait until Godwoken readonly node is ready to serve"
+        timeout ${{ env.TIMEOUT }} bash -c 'while true; do
+          docker-compose logs --tail=10 &> /tmp/docker.log
+          egrep "bad block" /tmp/docker.log && bad_block_found=true && break
+          egrep "sync new block" /tmp/docker.log | tail --lines=1
+          docker-compose ps gw-readonly | egrep healthy && break \
+          || echo "Godwoken readonly node is not healthy."
+          sleep 6s
+        done' || exit 0
+        [[ $bad_block_found == true ]] && exit 1
+        docker-compose ps
+        docker-compose ps gw-readonly | egrep healthy \
+        && echo "state=healthy" >> $GITHUB_OUTPUT
+       
+    - name: Start Godwoken Web3 and Indexer services if Godwoken readonly node is ready
+      if: steps.gw-readonly-node.outputs.state == 'healthy'
+      id: up
+      working-directory: testnet_v1_1
+      env:
+        TIMEOUT: 2h
+      run: |
+        docker-compose ps
+        docker-compose up -d
+        timeout ${{ env.TIMEOUT }} bash -c 'while true; do
+          docker-compose ps web3 | egrep healthy && break \
+          || echo "Godwoken Web3 RPC is not healthy."
+          sleep 6s
+        done' || echo "timeout(${{ env.TIMEOUT }})"
+        docker-compose ps web3-indexer | egrep Up \
+        && echo "web3=true" >> $GITHUB_OUTPUT
+
+    - uses: actions/checkout@v3
+      with:
+        repository: godwokenrises/godwoken-tests
+        ref: develop
+        path: godwoken-tests
+        submodules: 'true'
+    - uses: actions/setup-node@v3
+      with:
+        node-version: '16'
+    - run: npm i -g yarn && yarn install
+      working-directory: godwoken-tests/tools
+    - name: Check if web3 service is ready
+      if: steps.up.outputs.web3 == 'true'
+      uses: actions/github-script@v6
       with:
         script: |
           const { getTipBlockNumber } = require("./godwoken-tests/scripts/helper");
@@ -102,11 +258,20 @@ jobs:
               const [localTip, fullnodeTip] = await Promise.all([
                 getTipBlockNumber(), getTipBlockNumber(PUBLIC_WEB3_RPC)
               ]);
-              isSyncedToTip = localTip === fullnodeTip; 
+              isSyncedToTip = fullnodeTip - localTip < 6;
             } catch (error) {
               console.error(error);
             }
           }
+    - name: Run tests on the readonly-node
+      working-directory: godwoken-tests/contracts
+      run: npm install && npm run test
+
+    # - name: Setup tmate session
+    #   uses: mxschmitt/action-tmate@v3
+    #   if: ${{ failure() }}
+    #   with:
+    #     limit-access-to-actor: true
 
     - name: Save logs
       if: always()
