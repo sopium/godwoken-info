@@ -123,9 +123,12 @@ jobs:
             }
           }
       
-    # - name: Run tests on the readonly-node
-    #   working-directory: godwoken-tests/contracts
-    #   run: npm install && npm run test
+    - name: Run tests on the gw-mainnet-readonly-node
+      run: |
+        echo "Query gasPrice from gw-mainnet-readonly-node"
+        curl http://localhost:8024 -X POST -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","method":"eth_gasPrice","params": [],"id":1}'
+        echo "Query gasPrice from https://v1.mainnet.godwoken.io/rpc"
+        curl https://v1.mainnet.godwoken.io/rpc -X POST -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","method":"eth_gasPrice","params": [],"id":1}'
 
     # - name: Setup tmate session
     #   uses: mxschmitt/action-tmate@v3
