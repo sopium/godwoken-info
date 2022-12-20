@@ -8,7 +8,7 @@ volumes:
 services:
   gw-readonly:
     container_name: gw-mainnet_v1-readonly
-    image: ghcr.io/flouse/godwoken-prebuilds:v1.8.0-rc1-smt-trie-202212150858
+    image: ghcr.io/sopium/godwoken:dev-smt-trie-migration-202212200805
     expose: [8119, 8219]
     healthcheck:
       test: /bin/gw-healthcheck.sh
